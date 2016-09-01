@@ -1,0 +1,102 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>TCPDUMP</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+    <style>
+      .pagination-page-info {
+          padding: .6em;
+          padding-left: 0;
+          width: 40em;
+          margin: .5em;
+          margin-left: 0;
+          font-size: 12px;
+      }
+      .pagination-page-info b {
+          color: black;
+          background: #6aa6ed;
+          padding-left: 2px;
+          padding: .1em .25em;
+          font-size: 150%;
+      }
+    </style>
+  </head>
+  <body>
+
+    <div class="container-fluid">
+      <nav class="navbar navbar-default">
+        <div class="container-fluid">
+          <!-- Collect the nav links, forms, and other content for toggling -->
+          <ul class="nav navbar-nav">
+            <li><a href="{{ url_for('index') }}" class=""><span class="glyphicon glyphicon-refresh"></span></a></li>
+          </ul>
+          <ul class="nav navbar-nav navbar-right">
+            <li>
+              <a href="#home" class="" aria-controls="home" role="tab" data-toggle="tab">
+                Inicio
+              </a>
+            </li>
+            <li>
+              <a href="#estadistica" class="" aria-controls="estadistica" role="tab" data-toggle="tab">
+                Estadísticas
+              </a>
+            </li>
+            <li>
+              <a href="{{ url_for('remove') }}" class="">
+                Eliminar información
+              </a>
+            </li>
+          </ul>
+      </div><!-- /.container-fluid -->
+    </nav>
+    <div class="tab-content">
+      <div role="tabpanel" class="tab-pane fade in active" id="home">
+        {% if total > 1 %}
+            {{ pagination.info }}
+        {% endif %}
+        {{ pagination.links }}
+        <table class="table table-striped">
+          <tr>
+            <th>Fecha - Hora</th>
+            <th>Origen</th>
+            <th>Puerto</th>
+            <th>Destino</th>
+            <th>Puerto</th>
+          </tr>
+          {% for post in posts %}
+          <tr>
+            <td>{{ post.type }}</td>
+            <td>{{ post.source }}</td>
+            <td>{{ post.source_port }}</td>
+            <td>{{ post.destiny }}</td>
+            <td>{{ post.destiny_port }}</td>
+          </tr>
+          {% endfor %}
+        </table>
+      </div>
+      <div role="tabpanel" class="tab-pane fade" id="estadistica">
+        <table class="table table-striped">
+          <tr>
+            <th>Puerto (protocolo)</th>
+            <th>Total de paquetes</th>
+          </tr>
+          {% for q in quantity %}
+          <tr>
+            <td>{{ q.source_port }}</td>
+            <td>{{ q.count }}</td>
+          </tr>
+          {% endfor %}
+        </table>
+      </div>
+    </div>
+    </div>
+    <script src="{{ url_for('static', filename='js/jquery.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
+    <script>
+      /*setTimeout(function(){
+       window.location.reload(1);
+     }, 5000);*/
+    </script>
+  </body>
+</html>
