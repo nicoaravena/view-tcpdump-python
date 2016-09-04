@@ -8,3 +8,7 @@ libraries used:
   - pymongo
 
   - flask-pagination
+
+  - Celery
+
+  - RabbitMQ
