@@ -3,6 +3,7 @@ import pymongo
 import flask
 from flask.ext.paginate import Pagination
 from bson.code import Code
+from tcpdump import tcpdaemon
 
 client = pymongo.MongoClient()
 db = client['tcp_python']
@@ -16,17 +17,24 @@ def remove():
     return flask.redirect(flask.url_for('index'))
 
 
+@app.route('/tcpdump/', methods=['POST'])
+def update_tcp:
+    if request.method == 'POST':
+        pass
+    return False
+
+
 @app.route('/')
 def index():
     posts = db.posts
     total = posts.find().count()
 
     page, per_page, offset = get_page_items()
-    data = posts.find().skip(offset).limit(per_page)
+    data = posts.find().skip(offset).limit(per_page).sort('date', pymongo.DESCENDING)
 
-    pipeline = [{"$group":{"_id":"$source_port", "sum":{"$sum":1}}}]
+    pipeline = [{"$group":{"_id":"$source_port", "count":{"$sum":1}}}]
     quantity = db.collection.aggregate(pipeline)
-    print quantity
+    #print quantity
     pagination = get_pagination(page=page,
                                 per_page=per_page,
                                 total=total,
