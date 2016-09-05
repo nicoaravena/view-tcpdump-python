@@ -1,38 +1,20 @@
 # -*- coding: utf-8 -*-
 import pymongo
+import os
 import flask
+import flask_sijax
 import subprocess as sub
 from flask_paginate import Pagination
-from celery import Celery
 from bson.son import SON
 
 client = pymongo.MongoClient()
 db = client['tcp_python']
-
+path = os.path.join('.', os.path.dirname(__file__), 'static/js/sijax/')
 app = flask.Flask(__name__)
-app.config.update(
-CELERY_BROKER_URL='amqp://localhost:6379',
-CELERY_RESULT_BACKEND='amqp://localhost:6379'
-)
+app.config['SIJAX_STATIC_PATH'] = path
+app.config['SIJAX_JSON_URI'] = '/static/js/sijax/json2.js'
+flask_sijax.Sijax(app)
 app.secret_key = "dev_key"
-
-
-def make_celery(conf):
-    celery = Celery(conf.import_name,
-                    backend=conf.config['CELERY_RESULT_BACKEND'],
-                    broker=conf.config['CELERY_BROKER_URL'])
-    celery.conf.update(conf.config)
-    TaskBase = celery.Task
-    class ContextTask(TaskBase):
-        abstract = True
-        def __call__(self, *args, **kwargs):
-            with conf.app_context():
-                return TaskBase.__call__(self, *args, **kwargs)
-    celery.Task = ContextTask
-    return celery
-
-
-celery = make_celery(app)
 
 
 def parse_data():
@@ -52,25 +34,35 @@ def parse_data():
         d_ip = ".".join(temp[0:len(temp)-1])
         d_port = temp[len(temp)-1]
 
-        new = { "package" :
-                    {
-                    "date": type_pack,
-                    "source": s_ip,
-                    "destiny": d_ip,
-                    "source_port": s_port,
-                    "destiny_port": d_port,
-                    }
+        new = {
+                "date": type_pack,
+                "source": s_ip,
+                "destiny": d_ip,
+                "source_port": s_port,
+                "destiny_port": d_port
                 }
         db.posts.insert_one(new)
         db.profiles.delete_one({'_id':post_id})
 
 
-@app.route('/stream_sqrt')
-def stream():
-    def generate():
-        parse_data()
+@flask_sijax.route(app, '/hello')
+def hello():
+    # Every Sijax handler function (like this one) receives at least
+    # one parameter automatically, much like Python passes `self`
+    # to object methods.
+    # The `obj_response` parameter is the function's way of talking
+    # back to the browser
+    def say_hi(obj_response):
+        obj_response.alert('Hi there!')
 
-    return app.response_class(generate(), mimetype='text/plain')
+    if flask.g.sijax.is_sijax_request:
+        # Sijax request detected - let Sijax handle it
+        flask.g.sijax.register_callback('say_hi', say_hi)
+        return flask.g.sijax.process_request()
+
+    # Regular (non-Sijax request) - render the page template
+    return _render_template()
+
 
 @app.route('/remove/')
 def remove():
@@ -100,7 +92,6 @@ def index():
                 {"$sort": SON([("count", -1), ("_id", -1)])}
                 ]
     quantity = db.posts.aggregate(pipeline)
-    print quantity
     pagination = get_pagination(page=page,
                                 per_page=per_page,
                                 total=total,

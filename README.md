@@ -9,6 +9,4 @@ libraries used:
 
   - flask-pagination
 
-  - Celery
-
-  - RabbitMQ
+  - flask-sijax

@@ -1,4 +1,8 @@
 # -*- coding: utf-8 -*-
+"""
+Start tcpdump and save data as a string in a mongodb
+"""
+
 import pymongo
 import subprocess as sub
 from datetime import datetime
