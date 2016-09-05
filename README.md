@@ -8,5 +8,3 @@ libraries used:
   - pymongo
 
   - flask-pagination
-
-  - flask-sijax

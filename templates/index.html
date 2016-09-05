@@ -2,6 +2,7 @@
 <html>
   <head>
     <meta charset="utf-8">
+    <meta http-equiv="Pragma" context="no-cache">
     <title>TCPDUMP</title>
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
     <style>
@@ -13,7 +14,8 @@
           margin-left: 0;
           font-size: 12px;
       }
-      .pagination-page-info b {
+      .pagination-page-info b,
+      .total-packgage {
           color: black;
           background: #6aa6ed;
           padding-left: 2px;
@@ -30,11 +32,6 @@
     </style>
     <script src="{{ url_for('static', filename='js/jquery.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
-    <script type="text/javascript"
-        src="/static/js/sijax/sijax.js"></script>
-    <script type="text/javascript">
-        {{ g.sijax.get_js()|safe }}
-    </script>
   </head>
   <body>
     <div id="message"></div>
@@ -47,31 +44,30 @@
           </ul>
           <ul class="nav navbar-nav navbar-right">
             <li>
-              <a href="#home" class="" aria-controls="home" role="tab" data-toggle="tab">
-                Inicio
+              <a id="go-home" href="#home" class="" aria-controls="home" role="tab" data-toggle="tab">
+                <span class="glyphicon glyphicon-home"></span> Inicio
               </a>
             </li>
             <li>
-              <a href="#estadistica" class="" aria-controls="estadistica" role="tab" data-toggle="tab">
-                Estadísticas
+              <a id="go-stat" href="#estadistica" class="" aria-controls="estadistica" role="tab" data-toggle="tab">
+                <span class="glyphicon glyphicon-stats"></span> Estadísticas
               </a>
             </li>
             <li>
               <a href="{{ url_for('remove') }}" class="">
-                Eliminar información
+                <span class="glyphicon glyphicon-erase"></span> Eliminar información
               </a>
             </li>
-            <!--<li>
-              <a href="javascript://" onclick="Sijax.request('say_hi');">Click here</a>
-            </li>-->
           </ul>
       </div><!-- /.container-fluid -->
     </nav>
     <div class="tab-content">
       <div role="tabpanel" class="tab-pane fade in active" id="home">
-        {% if total > 1 %}
-            {{ pagination.info }}
-        {% endif %}
+        <div id="total-package">
+          {% if total > 1 %}
+              {{ pagination.info }}
+          {% endif %}
+        </div>
         {{ pagination.links }}
         <table id="main-table" class="table table-striped">
           <tr>
@@ -81,13 +77,13 @@
             <th>Destino</th>
             <th>Puerto</th>
           </tr>
-          {% for post in posts %}
+          {% for p in data_packs %}
           <tr>
-            <td>{{ post.date }}</td>
-            <td>{{ post.source }}</td>
-            <td>{{ post.source_port }}</td>
-            <td>{{ post.destiny }}</td>
-            <td>{{ post.destiny_port }}</td>
+            <td>{{ p.date }}</td>
+            <td>{{ p.source }}</td>
+            <td>{{ p.source_port }}</td>
+            <td>{{ p.destiny }}</td>
+            <td>{{ p.destiny_port }}</td>
           </tr>
           {% endfor %}
         </table>
@@ -98,19 +94,39 @@
             <th>Puerto (protocolo)</th>
             <th>Total de paquetes</th>
           </tr>
-          {% for q in quantity %}
-          <tr>
-            <td>{{ q._id }}</td>
-            <td>{{ q.count }}</td>
-          </tr>
-          {% endfor %}
+          <tbody>
+            {% for q in quantity %}
+            <tr>
+              <td>{{ q._id }}</td>
+              <td>{{ q.count }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
         </table>
       </div>
     </div>
     </div>
 
     <script>
+    function getNewPackages() {
+      $.ajax({
+        type: 'POST',
+        url: "{{ url_for( 'update_tcp') }}",
+        success: function(data) {
+          $("#main-table tr:first-child").after(data['data']);
+          $('#total-package').html('Total de paquetes: <b class="total-packgage">'+data['total']+'</b>');
+          $("#stat-table").html(data['stats']);
+          var rowCount = $('#main-table tr').length;
 
+          if (rowCount > 500) {
+            window.location.reload(1);
+          }
+        }
+      });
+    }
+    (function() {
+      setInterval(getNewPackages, 1000);
+    }());
     </script>
   </body>
 </html>

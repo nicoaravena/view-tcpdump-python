@@ -13,4 +13,4 @@ db = client['tcp_python']
 p = sub.Popen(('sudo', 'tcpdump', '-l'),
 stdout=sub.PIPE)
 for row in iter(p.stdout.readline,b''):
-    db.profiles.insert_one({"not_parsed": row.rstrip()})
+    db.full_rows.insert_one({"not_parsed": row.rstrip()})

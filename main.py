@@ -1,26 +1,45 @@
 # -*- coding: utf-8 -*-
+"""
+Tcpdump package parser and viewer with flask
+tcpdump package line structure:
+date src > dst: flags data-seqno ack window urgent options
+more info http://www.tcpdump.org/manpages/tcpdump.1.html
+"""
+
 import pymongo
 import os
 import flask
-import flask_sijax
 import subprocess as sub
 from flask_paginate import Pagination
 from bson.son import SON
 
 client = pymongo.MongoClient()
 db = client['tcp_python']
-path = os.path.join('.', os.path.dirname(__file__), 'static/js/sijax/')
+
 app = flask.Flask(__name__)
-app.config['SIJAX_STATIC_PATH'] = path
-app.config['SIJAX_JSON_URI'] = '/static/js/sijax/json2.js'
-flask_sijax.Sijax(app)
+
 app.secret_key = "dev_key"
 
 
-def parse_data():
-    profiles = db.profiles.find()
+def parse_data(is_ajax=False):
+    """
+    Get the data from a specific mongodb, and parse in this struct:
+    { new: dict {
+        'date': string datetime,
+        'source': string IP,
+        'source_port': string port/protocol,
+        'destiny': string IP,
+        'destiny_port': string port/protocol
+        }
+    }
+    Also parse if an ajax call is received.
+    """
+    full_rows = db.full_rows.find()
+    if is_ajax:
+        div = ""
 
-    for p in profiles:
+    max_package = 50 #max quantity of scanned package to send
+    for p in full_rows:
         post_id = p.get('_id')
         pack = p['not_parsed'].split()
         type_pack = pack[0]
@@ -37,67 +56,82 @@ def parse_data():
         new = {
                 "date": type_pack,
                 "source": s_ip,
-                "destiny": d_ip,
                 "source_port": s_port,
+                "destiny": d_ip,
                 "destiny_port": d_port
                 }
-        db.posts.insert_one(new)
-        db.profiles.delete_one({'_id':post_id})
+        if is_ajax:
+            div += "<tr class='warning'><td>{0}</td>".format(type_pack)
+            div += "<td>{0}</td>".format(s_ip)
+            div += "<td>{0}</td>".format(s_port)
+            div += "<td>{0}</td>".format(d_ip)
+            div += "<td>{0}</td></tr>".format(d_port)
+        db.data_packs.insert_one(new)
+        db.full_rows.delete_one({'_id':post_id})
+        if is_ajax and max_package == 0:
+            return div
+        max_package -= 1
+
+    if is_ajax:
+        return div
 
 
-@flask_sijax.route(app, '/hello')
-def hello():
-    # Every Sijax handler function (like this one) receives at least
-    # one parameter automatically, much like Python passes `self`
-    # to object methods.
-    # The `obj_response` parameter is the function's way of talking
-    # back to the browser
-    def say_hi(obj_response):
-        obj_response.alert('Hi there!')
-
-    if flask.g.sijax.is_sijax_request:
-        # Sijax request detected - let Sijax handle it
-        flask.g.sijax.register_callback('say_hi', say_hi)
-        return flask.g.sijax.process_request()
-
-    # Regular (non-Sijax request) - render the page template
-    return _render_template()
+def get_stats():
+    pipeline = [
+                {"$group":{"_id":"$source_port", "count":{"$sum":1}}},
+                {"$sort": SON([("count", -1), ("_id", -1)])}
+                ]
+    quantity = list(db.data_packs.aggregate(pipeline))
+    div = "<table id='stat-table' class='table table-striped'>\
+            <tr>\
+            <th>Puerto (protocolo)</th>\
+            <th>Total de paquetes</th>\
+            </tr><tbody>"
+    for q in quantity:
+        div += "<tr class='info'><td>{0}</td>".format(q['_id'])
+        div += "<td>{0}</td></tr>".format(q['count'])
+    div += "</tbody></table>"
+    return div
 
 
 @app.route('/remove/')
 def remove():
-    db.posts.remove()
-    db.profiles.remove()
+    """
+    Removes all data from databases.
+    """
+    db.data_packs.remove()
+    db.full_rows.remove()
     return flask.redirect(flask.url_for('index'))
 
 
-@app.route('/tcpdump/', methods=['POST'])
+@app.route('/tcp_update/', methods=['POST'])
 def update_tcp():
-
-    return False
+    return flask.jsonify({'data': parse_data(True),
+                            'total': db.data_packs.find().count(),
+                            'stats': get_stats()})
 
 
 @app.route('/')
 def index():
     if 'tcp_bool' not in flask.session:
         flask.session['tcp_bool'] = False
-    posts = db.posts
-    total = posts.find().count()
+    data_packs = db.data_packs
+    total = data_packs.find().count()
 
     page, per_page, offset = get_page_items()
-    data = posts.find().skip(offset).limit(per_page).sort('date', pymongo.DESCENDING)
-
+    data = data_packs.find().skip(offset).\
+                limit(per_page).sort('date', pymongo.DESCENDING)
     pipeline = [
                 {"$group":{"_id":"$source_port", "count":{"$sum":1}}},
                 {"$sort": SON([("count", -1), ("_id", -1)])}
                 ]
-    quantity = db.posts.aggregate(pipeline)
+    quantity = db.data_packs.aggregate(pipeline)
     pagination = get_pagination(page=page,
                                 per_page=per_page,
                                 total=total,
                                 record_name=data)
     return flask.render_template("index.html",
-                                    posts=data,
+                                    data_packs=data,
                                     page=page,
                                     per_page=per_page,
                                     total=total,
